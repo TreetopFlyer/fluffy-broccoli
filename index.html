@@ -1,0 +1,176 @@
+<script>
+var Net = {};
+    Net.Connection = new WebSocket("ws://localhost:8080");
+    Net.Connection.onopen = function()
+    {
+
+    };
+    Net.Connection.onmessage = function(inEvent)
+    {
+        var message = JSON.parse(inEvent.data);
+        console.log(Net.Commands[message.Command].Receive(message.Arguments))
+    }
+    Net.Commands = {
+        AbilityCreate:{
+            Give:function(inDelta)
+            {
+                Ability.Create(inDelta);
+                Net.Connection.send( JSON.stringify({Command:"AbilityCreate", Arguments:inDelta}) );
+            },
+            Receive:function(inDelta)
+            {
+                Ability.Create(inDelta);
+            }
+        }
+    };
+    
+    /*
+    notes
+
+    =====
+    > Network Commands:
+        
+        Change local state then have the server tell other clients to make the same changes.
+        Certain things, like if a character is incapacitated, can be inferred from other networked updates and do not need to be broadcast
+
+        Lobby:
+        -> player joined
+        -> character created | player
+
+        Game:
+        -> set active character | id
+
+        Character:
+        -> ability charge    | id
+        -> ability cast      | id, targets
+        -> ability combine   | id
+        -> attunement change | id, delta
+
+    =====
+    > Game updates
+    
+        Advance to next character conditions: 
+
+            After update:
+            ? is the current character incapacitated or out of energy
+            
+            After action:
+            ? is the current character out of energy
+
+        Elimination Conditions:
+        
+            After incapacitation:
+            ? are all characters owned by a player incapacitated?
+
+        Winning Conditions:
+
+            After elimination:
+            ? are all players other than one eliminated?
+
+    */
+
+</script>
+
+<script>
+function DataType()
+{
+    var Type;
+        Type = {};
+        Type.Count = 0;
+        Type.Instances = {},
+        Type.Create = function(){};
+        Type.Super = function(inObject)
+        {
+            Type.Count++;
+            Type.Instances["_"+Type.Count] = inObject;
+        };
+        Type.Find = function(inID)
+        {
+            return Type.Instances[inID];
+        }
+        Type.Delete = function(inID)
+        {
+            delete Type.Instances[inID];
+        };
+    return Type;
+}
+</script>
+
+<script>
+var Player = DataType();
+</script>
+
+<script>
+var Character = DataType();
+    Character.Create = function()
+    {
+        var obj;
+        obj = {};
+        obj.Health = 100;
+        obj.Energy = 3;
+        obj.Abilities = [];
+        obj.Effects = [];
+        return Character.Super(obj);
+    };
+</script>
+
+<script>
+var Ability = DataType();
+    Ability.Create = function(inDelta)
+        {
+            var obj;
+            var i, current, sum;
+            var typeGive, typeGet;
+
+            obj = {};
+            sum = 0;
+            typeGive = [];
+            typeGet = [];
+            for(i=0; i<inDelta.length; i++)
+            {
+                current = inDelta[i];
+                if(current == 0)
+                {
+                    continue;
+                }
+                if(current < 0)
+                {
+                    typeGet.push(i);
+                }
+                else
+                {
+                    sum += current;
+                    typeGive.push(i);
+                }
+            }
+            obj.Delta = inDelta;
+            obj.Rank = sum;
+            obj.Cost = typeGive;
+            obj.Gain = typeGet;
+            obj.Charge = 0;
+            return Ability.Super(obj);
+        };
+    Ability.Combine = function(inAbility1ID, inAbility2ID)
+        {
+            var i;
+            var a1, a2;
+            var output;
+            a1 = Ability.Find(inAbility1ID);
+            a2 = Ability.Find(inAbility1ID);
+            output = [];
+            for(i=0; i<a1.Delta.length; i++)
+            {
+                output[i] = a1.Delta[i] + a2.Delta[i];
+            }
+            return Ability.Create(output);
+        };
+</script>
+
+<script>
+var Effect = DataType();
+    Effect.Create = function()
+    {
+        var obj = {};
+        Effect.Super(obj);
+    };
+</script>
